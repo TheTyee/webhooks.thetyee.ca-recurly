@@ -243,4 +243,5 @@ post '/recurly' => sub {
 
 
 app->secret( $config->{'app_secret'} );
+
 app->start;
