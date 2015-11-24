@@ -195,9 +195,7 @@ post '/recurly' => sub {
                     $self->app->log->debug('found email in local db');    
     my %recurlyupdate;
   
-  if ($update_params{'custom_builder_last_trans_date'}) {
-    $recurlyupdate{"trans_date"} = $update_params{'custom_builder_last_trans_date'};
-  }
+
   if ( $update_params{'custom_builder_level'}) {
     $recurlyupdate{"amount_in_cents"} = $update_params{'custom_builder_level'} * 100;
   }
