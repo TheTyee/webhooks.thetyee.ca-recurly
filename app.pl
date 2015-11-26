@@ -201,11 +201,11 @@ post '/recurly' => sub {
   }
   
    if ( $update_params{'custom_builder_plan'}) {
-    $recurlyupdate{"plan_name"} = $update_params{'custom_builder_plan'};
+    $recurlyupdate{"plan_code"} = $update_params{'custom_builder_plan'};
   }
   
   if ($update_params{'custom_builder_cancelled_date'}) {
-    $recurlyupdate{"plan_name"} = "cancelled"
+    $recurlyupdate{"plan_code"} = "cancelled"
   }
                       
                    $rs->update(\%recurlyupdate);
