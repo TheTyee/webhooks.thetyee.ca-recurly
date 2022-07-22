@@ -9,7 +9,7 @@ use Support::Schema;
 
 
 my $config = plugin 'JSONConfig';
-my $json   = Mojo::JSON->new;
+# my $json   = Mojo::JSON->new;
 
 
 # Get a UserAgent
@@ -68,7 +68,7 @@ helper find_or_new => sub {
 
 get '/' => sub {
     my $c = shift;
-  $c->render(text => 'Hello World!');
+  $c->render(text => 'Hello World! Recurly');
 
 };
 
@@ -86,144 +86,148 @@ post '/recurly' => sub {
     my $email = $xms->{$hooktype}{account}{email};
     my $builder_plan;
     my $amount;
-        
+       my $ub = Mojo::UserAgent->new;    
+      my $merge_fields = {};
     
-    my %update_params;
-    $update_params{'email'} = $email;
+      my $c = shift;
+    
+
+    
     if ($hooktype eq 'new_subscription_notification') {
-        $update_params{'custom_builder_last_trans_date'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
-        $update_params{'custom_builder_plan'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
-        $update_params{'custom_builder_level'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
-        $update_params{'custom_builder'} = 1;
+        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
+        $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
+        $merge_fields->{'BUILDER'} = 1;
     
     
     } elsif ($hooktype eq 'renewed_subscription_notification') {
-        $update_params{'custom_builder_last_trans_date'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
-        $update_params{'custom_builder_level'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
-        $update_params{'custom_builder_plan'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
-        $update_params{'custom_builder'} = 1;
+        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
+        $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
+        $merge_fields->{'BUILDER'} = 1;
 
         
         
     } elsif ($hooktype eq 'updated_subscription_notification') {
-        $update_params{'custom_builder_level'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
-        $update_params{'custom_builder'} = 1;
-        $update_params{'custom_builder_last_trans_date'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
-        $update_params{'custom_builder_plan'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
+        $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
+        $merge_fields->{'BUILDER'} = 1;
+        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
 
 
         
      } elsif ($hooktype eq 'expired_subscription_notification' || $hooktype eq 'canceled_subscription_notification') {
-        $update_params{'custom_builder_last_trans_date'} = $xms->{$hooktype}{subscription}{canceled_at}{content};        
-        $update_params{'custom_builder_cancelled_date'} = $xms->{$hooktype}{subscription}{canceled_at}{content};
-        $update_params{'custom_builder_plan'} = 'cancelled';
+        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{canceled_at}{content};        
+        $merge_fields->{'B_C_DATE'} = $xms->{$hooktype}{subscription}{canceled_at}{content};
+        $merge_fields->{'B_PLAN'} = 'cancelled';
 
     } else {
             $self->app->log->debug('transtype is ' . $hooktype);    
             $self->app->log->debug( 'no webhooks of use here' );
-          return $self->render(text => 'Nothing to update', status => '204');
-              
-    }
-    
-
-    
-    # find the record
+          return $self->render(text => 'Nothing to update', status => '204');           
+    }   
+# find the record
        my $search_args = {
-        %args,
-        cmd   => 'find',
-        email => $email,
-    };
+        email_address => $email,
+         status_if_new => 'subscribed',
+         merge_fields => $merge_fields,
+
+        status => 'subscribed'   
+        };
     my $search; my $result;
     
-    # Get the subscriber record, if there is one already
-    my $s = $ua->post( $API => form => $search_args );
-    if ( my $res = $s->success ) {
-        $search = $res->body;
-    }
-    else {
-        my ( $err, $code ) = $s->error;
-        $result = $code ? "$code response: $err" : "Connection error: $err";
-    }
-#get a string of comma separated keys then ^ and values like whatcounts wants    
-    my $updatecsv;
-    $updatecsv = join( ',', (keys(%update_params))) . '^';
-    my $count = 0;
-    foreach (keys(%update_params)) {
-            if  ($count > 0 ) { $updatecsv .= ','};
-            $updatecsv .= $update_params{$_};
-            $count++;
+use Digest::MD5 qw(md5 md5_hex md5_base64);
+
+my $emailmd5 = md5_hex($email);
+
+    my $successText = 'Please check your inbox for an email from thetyee.ca containing a confirmation message';
+    my $successHtml = '<h2><span class="glyphicon glyphicon-check" aria-hidden="true">';
+    $successHtml   .= '</span>&nbsp;Almost done</h2>';
+    $successHtml   .= '<p> ' . $successText . '</p>';
+    my $errorText = 'There was a problem with your subscription. Please e-mail helpfulfish@thetyee.ca to be added to the list.';
+    my $errorHtml = '<p>' . $errorText . '</p>';
+    my $notification;
+ 
+ my $uget = Mojo::UserAgent->new;
+  my $getresult;
+my $GETURL =   Mojo::URL->new('https://Bryan:4462eb087b3031d667558a0b2d9f9cea-us14@us14.api.mailchimp.com/3.0/lists/979b7d233e/members/'. $emailmd5);
+ my $gettx = $uget->get( $GETURL  );
+  my $getjs = $gettx->result->json;    
+
+     app->log->debug( "code" . $gettx->res->code);
+      app->log->debug( Dumper( $getjs));
+     app->log->debug( "unique email id" .  $getjs->{'unique_email_id'});
+     if ($gettx->res->code == 200 ) {
+        $getresult = $gettx->result->body;
+        # Output response when debugging
+      #          app->log->debug( Dumper( $tx  ) );
+      #  app->log->debug( Dumper( $result ) );
+        if ( $getresult =~ 'subscribed' ) {
+            my $subscriberId = $getjs->{'unique_email_id'};
         }
+     
+     
+ 
+  my $URL = Mojo::URL->new('https://Bryan:4462eb087b3031d667558a0b2d9f9cea-us14@us14.api.mailchimp.com/3.0/lists/979b7d233e/members/'. $emailmd5);
+ my $tx = $ua->put( $URL => json => $search_args );
     
-    
-    if ($search) {
-           $self->app->log->debug('updating now - search exists');    
-
-     my $update = {
-        %args,
-        cmd =>              'update',
-        list_id               => $wc_list_id,
-        format                => '2',
-        identity_field        => 'email',
-        data => $updatecsv
-    };
-    my $tx = $ua->post( $API => form => $update );
-    if ( my $res = $tx->success ) {
-                           $self->app->log->debug(' Successful whatcounts UA tx dump: ' .Dumper($tx));    
-
-        $result = $res->body;
-                   $self->app->log->debug('update success');    
-
-    }
-    else {
+   my $js = $tx->result->json;
+     app->log->debug( "code" . $tx->res->code);
+      app->log->debug( Dumper( $js));
+     app->log->debug( "unique email id" .  $js->{'unique_email_id'});
+  
+# check params at https://docs.mojolicious.org/Mojo/Transaction/HTTP
+  
+    if ($tx->res->code == 200 ) {
+        $result = $tx->result->body;
+        # Output response when debugging
+      #          app->log->debug( Dumper( $tx  ) );
+      #  app->log->debug( Dumper( $result ) );
+        if ( $result =~ 'subscribed' ) {
+            my $subscriberId = $js->{'unique_email_id'};
+            # Send 200 back to the request
+            $c->render( json => { 
+                    text => $successText, 
+                    html => $successHtml, 
+                    subcriberId => $subscriberId, 
+                    resultStr => $result }, 
+                status => 200 );
+$notification = $email . "updated based on recurly webhook";
+            app->log->info($notification) unless $email eq 'api@thetyee.ca';
+         
+$ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
+          } elsif ( $result =~ 'FAILURE' ) {
+            $c->render( json => { 
+                    text => $errorText, 
+                    html => $errorHtml, 
+                    resultStr => $result }, 
+                status => 500 );
+		$notification = $email . ", failure.   error: " .$errorText;
+		app->log->info($email . ", failure \n") unless $email eq 'api@thetyee.ca';
+        $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
+          }
+    } else {
         my ( $err, $code ) = $tx->error;
-        $result = $code ? "$code response: $err" : "Connection error: $err";
-                           $self->app->log->debug('update failure');    
+        $result = $code ? "$code response: $err" : "Connection error: " . $err->{'message'};
+        # TODO this needs to notify us of a problem
+        app->log->debug( Dumper( $result ) );
+        # Send a 500 back to the request, along with a helpful message
+            $c->render( json => { 
+                    text => $errorText, 
+                    html => $errorHtml, 
+                    resultStr => $result }, 
+                status => 500 );
+	app->log->info("error: "  . $errorText) unless $email eq 'api@thetyee.ca';
+            app->log->debug("error: "  . $errorText);
+    }
+    
+    
+     } else {
+      app->log->info("email  $email not found on mailchimp. END");
+      
+ 
 
-    }
-    
-    $self->app->log->debug('Adding to local db');
-    
-    my $subscriber = shift;
-    my $dbhsupport       = $self->dbhsupport();
-    my $result;
-    try {
-        $result = $dbhsupport->txn_do(
-            sub {
-                my $rs = $dbhsupport->resultset( 'Transaction' )
-                    ->find( { 'email' => $email } );
-                if ( $rs->in_storage ) {
-                    $self->app->log->debug('found email in local db');    
-    my %recurlyupdate;
-  
 
-  if ( $update_params{'custom_builder_level'}) {
-    $recurlyupdate{"amount_in_cents"} = $update_params{'custom_builder_level'} * 100;
-  }
-  
-   if ( $update_params{'custom_builder_plan'}) {
-    $recurlyupdate{"plan_code"} = $update_params{'custom_builder_plan'};
-  }
-  
-  if ($update_params{'custom_builder_cancelled_date'}) {
-    $recurlyupdate{"plan_code"} = "cancelled"
-  }
-                      
-                   $rs->update(\%recurlyupdate);
-                }
-            }
-        );
-    }
-    catch {
-        $self->app->log->debug( $_ );
-    };
-#    $self->app->log->debug( 'return from db update :' . Dumper($result) );
-    if ($result) {
-        $self->app->log->debug('success adding to local db');
-    }
-    
-    
-    } # search exists test
-    
     
 # $self->app->log->debug( Dumper( $xms ) );
         $self->app->log->debug('transtype is ' . $hooktype);    
@@ -240,6 +244,9 @@ post '/recurly' => sub {
 };
 
 
-app->secret( $config->{'app_secret'} );
+};
+
+
+# app->secret( $config->{'app_secret'} );
 
 app->start;
