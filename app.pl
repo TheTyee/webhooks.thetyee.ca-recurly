@@ -89,7 +89,13 @@ post '/recurly' => sub {
        my $ub = Mojo::UserAgent->new;    
       my $merge_fields = {};
     
-      my $c = shift;
+   my $successText = 'Please check your inbox for an email from thetyee.ca containing a confirmation message';
+    my $successHtml = '<h2><span class="glyphicon glyphicon-check" aria-hidden="true">';
+    $successHtml   .= '</span>&nbsp;Almost done</h2>';
+    $successHtml   .= '<p> ' . $successText . '</p>';
+    my $errorText = 'There was a problem with your subscription. Please e-mail helpfulfish@thetyee.ca to be added to the list.';
+    my $errorHtml = '<p>' . $errorText . '</p>';
+    my $notification;
     
 
     
@@ -140,17 +146,11 @@ use Digest::MD5 qw(md5 md5_hex md5_base64);
 
 my $emailmd5 = md5_hex($email);
 
-    my $successText = 'Please check your inbox for an email from thetyee.ca containing a confirmation message';
-    my $successHtml = '<h2><span class="glyphicon glyphicon-check" aria-hidden="true">';
-    $successHtml   .= '</span>&nbsp;Almost done</h2>';
-    $successHtml   .= '<p> ' . $successText . '</p>';
-    my $errorText = 'There was a problem with your subscription. Please e-mail helpfulfish@thetyee.ca to be added to the list.';
-    my $errorHtml = '<p>' . $errorText . '</p>';
-    my $notification;
+   
  
  my $uget = Mojo::UserAgent->new;
   my $getresult;
-my $GETURL =   Mojo::URL->new('https://Bryan:4462eb087b3031d667558a0b2d9f9cea-us14@us14.api.mailchimp.com/3.0/lists/979b7d233e/members/'. $emailmd5);
+my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config->{'mc_api_key'} . '@' . $config->{'mc_api'} . '/3.0/lists/979b7d233e/members/'. $emailmd5);
  my $gettx = $uget->get( $GETURL  );
   my $getjs = $gettx->result->json;    
 
@@ -168,7 +168,7 @@ my $GETURL =   Mojo::URL->new('https://Bryan:4462eb087b3031d667558a0b2d9f9cea-us
      
      
  
-  my $URL = Mojo::URL->new('https://Bryan:4462eb087b3031d667558a0b2d9f9cea-us14@us14.api.mailchimp.com/3.0/lists/979b7d233e/members/'. $emailmd5);
+  my $URL = Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config->{'mc_api_key'} . '@' . $config->{'mc_api'} . '/3.0/lists/979b7d233e/members/'. $emailmd5);
  my $tx = $ua->put( $URL => json => $search_args );
     
    my $js = $tx->result->json;
@@ -186,7 +186,7 @@ my $GETURL =   Mojo::URL->new('https://Bryan:4462eb087b3031d667558a0b2d9f9cea-us
         if ( $result =~ 'subscribed' ) {
             my $subscriberId = $js->{'unique_email_id'};
             # Send 200 back to the request
-            $c->render( json => { 
+            $self->render( json => { 
                     text => $successText, 
                     html => $successHtml, 
                     subcriberId => $subscriberId, 
@@ -197,7 +197,7 @@ $notification = $email . "updated based on recurly webhook";
          
 $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
           } elsif ( $result =~ 'FAILURE' ) {
-            $c->render( json => { 
+            $self->render( json => { 
                     text => $errorText, 
                     html => $errorHtml, 
                     resultStr => $result }, 
@@ -212,7 +212,7 @@ $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $e
         # TODO this needs to notify us of a problem
         app->log->debug( Dumper( $result ) );
         # Send a 500 back to the request, along with a helpful message
-            $c->render( json => { 
+            $self->render( json => { 
                     text => $errorText, 
                     html => $errorHtml, 
                     resultStr => $result }, 
