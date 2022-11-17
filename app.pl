@@ -173,6 +173,7 @@ my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config-
     
    my $js = $tx->result->json;
      app->log->debug( "code" . $tx->res->code);
+ app->log->debug( Dumper( $tx));
       app->log->debug( Dumper( $js));
      app->log->debug( "unique email id" .  $js->{'unique_email_id'});
   
