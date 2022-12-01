@@ -6,6 +6,9 @@ use Try::Tiny;
 use Data::Dumper;
 use WebHooks::Schema;
 use Support::Schema;
+use POSIX qw(strftime);
+use Time::Piece;
+
 
 
 my $config = plugin 'JSONConfig';
@@ -96,34 +99,57 @@ post '/recurly' => sub {
     my $errorText = 'There was a problem with your subscription. Please e-mail helpfulfish@thetyee.ca to be added to the list.';
     my $errorHtml = '<p>' . $errorText . '</p>';
     my $notification;
-    
+    my $date;
 
     
     if ($hooktype eq 'new_subscription_notification') {
-        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+     
+             $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
+         my $mctime = $t->strftime("%d/%m/%Y");
+     
+     
+        $merge_fields->{'B_L_T_DATE'} = $mctime;
         $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
         $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
         $merge_fields->{'BUILDER'} = 1;
     
     
     } elsif ($hooktype eq 'renewed_subscription_notification') {
-        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+                  $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
+         my $mctime = $t->strftime("%d/%m/%Y");
+         
+        $merge_fields->{'B_L_T_DATE'} = $mctime;
         $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
         $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
         $merge_fields->{'BUILDER'} = 1;
 
-        
+    } elsif ($hooktype eq 'successful_payment_notification' && (  $xms->{$hooktype}{transaction}{subscription_id}{nil} && $xms->{$hooktype}{transaction}{subscription_id}{nil} eq 'true')) {      
+
+        $merge_fields->{'B_ONETIME'} = 1;
+        $merge_fields->{'B_ONE_AMT'} = ($xms->{$hooktype}{transaction}{amount_in_cents}{content}  / 100);
+        $date = $xms->{$hooktype}{transaction}{date}{content};
+        my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
+        my $mctime = $t->strftime("%d/%m/%Y");
+        $merge_fields->{'ONETIME_DT'} = $mctime;
         
     } elsif ($hooktype eq 'updated_subscription_notification') {
         $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
         $merge_fields->{'BUILDER'} = 1;
-        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
+        my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
+        my $mctime = $t->strftime("%d/%m/%Y");
+        $merge_fields->{'B_L_T_DATE'} = $mctime;
         $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
 
 
         
      } elsif ($hooktype eq 'expired_subscription_notification' || $hooktype eq 'canceled_subscription_notification') {
-        $merge_fields->{'B_L_T_DATE'} = $xms->{$hooktype}{subscription}{canceled_at}{content};        
+        $date = $xms->{$hooktype}{subscription}{canceled_at}{content};    
+        my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
+        my $mctime = $t->strftime("%d/%m/%Y");
+        $merge_fields->{'B_L_T_DATE'} =  $mctime;   
         $merge_fields->{'B_C_DATE'} = $xms->{$hooktype}{subscription}{canceled_at}{content};
         $merge_fields->{'B_PLAN'} = 'cancelled';
 
