@@ -76,7 +76,7 @@ get '/' => sub {
 };
 
 post '/recurly' => sub {
-    
+    my $notify;
     my $self = shift;
     my $post = shift;
         my $dom   = $self->req->dom;
@@ -103,8 +103,7 @@ post '/recurly' => sub {
 
     
     if ($hooktype eq 'new_subscription_notification') {
-    $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
- 
+$notification .= "$email parsing $hooktype" unless $email eq 'api@thetyee.ca';  
              $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
          my $mctime = $t->strftime("%m/%d/%Y");
@@ -117,8 +116,7 @@ post '/recurly' => sub {
     
     
     } elsif ($hooktype eq 'renewed_subscription_notification') {
-         $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
-
+$notification .= "$email parsing $hooktype" unless $email eq 'api@thetyee.ca';  
                   $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
          my $mctime = $t->strftime("%m/%d/%Y");
@@ -129,7 +127,7 @@ post '/recurly' => sub {
         $merge_fields->{'BUILDER'} = 1;
 
     } elsif ($hooktype eq 'successful_payment_notification' &&  ref($xms->{$hooktype}{transaction}{subscription_id}) && $xms->{$hooktype}{transaction}{subscription_id}{nil} && $xms->{$hooktype}{transaction}{subscription_id}{nil} eq 'true') {      
-    $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
+$notification .= "$email parsing $hooktype" unless $email eq 'api@thetyee.ca';  
 
         $merge_fields->{'B_ONETIME'} = 1;
         $merge_fields->{'B_ONE_AMT'} = ($xms->{$hooktype}{transaction}{amount_in_cents}{content}  / 100);
@@ -139,8 +137,7 @@ post '/recurly' => sub {
         $merge_fields->{'ONETIME_DT'} = $mctime;
         
     } elsif ($hooktype eq 'updated_subscription_notification') {
-            $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
-        $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
+$notification .= "$email parsing $hooktype" unless $email eq 'api@thetyee.ca';  
         $merge_fields->{'BUILDER'} = 1;
         $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
@@ -148,8 +145,7 @@ post '/recurly' => sub {
         $merge_fields->{'B_L_T_DATE'} = $mctime;
         $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};   
      } elsif ($hooktype eq 'expired_subscription_notification' || $hooktype eq 'canceled_subscription_notification') {
-            $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
-        $date = $xms->{$hooktype}{subscription}{canceled_at}{content};    
+$notification .= "$email parsing $hooktype" unless $email eq 'api@thetyee.ca';  
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
         my $mctime = $t->strftime("%m/%d/%Y");
         $merge_fields->{'B_L_T_DATE'} =  $mctime;   
@@ -157,9 +153,9 @@ post '/recurly' => sub {
         $merge_fields->{'B_PLAN'} = 'cancelled';
         $merge_fields->{'BUILDER'} = 0;
     } else {
-            $self->app->log->debug('transtype is ' . $hooktype);    
-            $self->app->log->debug( 'no webhooks of use here' );
-          return $self->render(text => 'Nothing to update', status => '204');           
+            $self->app->log->debug('99 transtype is ' . $hooktype);    
+            $self->app->log->debug( '991 no webhooks of use here' );
+          return $self->render(text => '992 Nothing to update', status => '204');           
     }   
 # find the record
        my $search_args = {
@@ -183,9 +179,9 @@ my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config-
  my $gettx = $uget->get( $GETURL  );
   my $getjs = $gettx->result->json;    
 
-     app->log->debug( "code" . $gettx->res->code);
-      app->log->debug( Dumper( $getjs));
-     app->log->debug( "unique email id" .  $getjs->{'unique_email_id'});
+     app->log->debug( "993 code" . $gettx->res->code);
+      app->log->debug( "993.1 " . Dumper( $getjs));
+     app->log->debug( "994 unique email id" .  $getjs->{'unique_email_id'});
      if ($gettx->res->code == 200 ) {
         $getresult = $gettx->result->body;
         # Output response when debugging
@@ -201,10 +197,11 @@ my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config-
  my $tx = $ua->put( $URL => json => $search_args );
     
    my $js = $tx->result->json;
-     app->log->debug( "code" . $tx->res->code);
- app->log->debug( Dumper( $tx));
-      app->log->debug( Dumper( $js));
-     app->log->debug( "unique email id" .  $js->{'unique_email_id'});
+     app->log->debug( "995 code" . $tx->res->code);
+ app->log->debug( Dumper( "995.1 \n" . $tx));
+      app->log->debug( "995.2 \n" . Dumper( $js));
+      $notification .=  "995.2 \n" . Dumper( $js);
+     app->log->debug( "996 unique email id" .  $js->{'unique_email_id'});
   
 # check params at https://docs.mojolicious.org/Mojo/Transaction/HTTP
   
@@ -223,9 +220,8 @@ my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config-
                     resultStr => $result }, 
                 status => 200 );
 $notification = $email . "updated based on recurly webhook.";
-            app->log->info($notification) unless $email eq 'api@thetyee.ca';
+            app->log->info(" 997 " .$notification) unless $email eq 'api@thetyee.ca';
          
-$ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
           } else {
             $self->render( json => { 
                     text => $errorText, 
@@ -233,38 +229,37 @@ $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $e
                     resultStr => $result }, 
                 status => 500 );
 		$notification = $email . ", failure? return did not contain 'subscribed'.   error: " .$errorText;
-		app->log->info($email . ", failure \n") unless $email eq 'api@thetyee.ca';
-        $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
+		app->log->info(" 998 " .$email . ", failure \n") unless $email eq 'api@thetyee.ca';
           }
     } else {
         my ( $err, $code ) = $tx->error;
         $result = $code ? "$code response: $err" : "Connection error: " . $err->{'message'};
         # TODO this needs to notify us of a problem
-        app->log->debug( Dumper( $result ) );
+        app->log->debug( "999 " . Dumper( $result ) );
         # Send a 500 back to the request, along with a helpful message
             $self->render( json => { 
                     text => $errorText, 
                     html => $errorHtml, 
                     resultStr => $result }, 
                 status => 500 );
-	app->log->info("error: "  . $errorText) unless $email eq 'api@thetyee.ca';
-            app->log->debug("error: "  . $errorText);
+	app->log->info("9910 error: "  . $errorText) unless $email eq 'api@thetyee.ca';
+            app->log->debug("9911 error: "  . $errorText);
                     $ub->post($config->{'notify_url'} => json => {text => "error: $errorText \n" }) unless $email eq 'api@thetyee.ca'; 
             
     }
     
     
      } else {
-      app->log->info("email  $email not found on mailchimp. END");
+      app->log->info("9912 email  $email not found on mailchimp. END");
       
  
 
 
     
 # $self->app->log->debug( Dumper( $xms ) );
-        $self->app->log->debug('transtype is ' . $hooktype);    
-        $self->app->log->debug("return from WC search \n " . $search);    
-        $self->app->log->debug("return from WC update \n " . Dumper( $result));
+        $self->app->log->debug('9913 transtype is ' . $hooktype);    
+        $self->app->log->debug("9914 return from WC search \n " . $search);    
+        $self->app->log->debug("9915 return from WC update \n " . Dumper( $result));
 #        $self->app->log->debug("update csv for whatcounts" . $updatecsv);    
 
     $self->respond_to(   
@@ -274,6 +269,9 @@ $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $e
 
     
 };
+
+if ($notification) {$ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; }
+
 
 
 };
