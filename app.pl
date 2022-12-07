@@ -128,7 +128,7 @@ post '/recurly' => sub {
         $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
         $merge_fields->{'BUILDER'} = 1;
 
-    } elsif ($hooktype eq 'successful_payment_notification' && (  $xms->{$hooktype}{transaction}{subscription_id}{nil} && $xms->{$hooktype}{transaction}{subscription_id}{nil} eq 'true')) {      
+    } elsif ($hooktype eq 'successful_payment_notification' &&  ref($xms->{$hooktype}{transaction}{subscription_id}) && $xms->{$hooktype}{transaction}{subscription_id}{nil} && $xms->{$hooktype}{transaction}{subscription_id}{nil} eq 'true') {      
     $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
 
         $merge_fields->{'B_ONETIME'} = 1;
