@@ -152,6 +152,8 @@ post '/recurly' => sub {
         $merge_fields->{'B_L_T_DATE'} =  $mctime;   
         $merge_fields->{'B_C_DATE'} = $xms->{$hooktype}{subscription}{canceled_at}{content};
         $merge_fields->{'B_PLAN'} = 'cancelled';
+        $merge_fields->{'BUILDER'} = 0;
+
 
     } else {
             $self->app->log->debug('transtype is ' . $hooktype);    
