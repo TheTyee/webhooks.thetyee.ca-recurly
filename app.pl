@@ -219,7 +219,7 @@ my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config-
                     subcriberId => $subscriberId, 
                     resultStr => $result }, 
                 status => 200 );
-$notification = $email . "updated based on recurly webhook.";
+$notification .= $email . "updated based on recurly webhook.";
             app->log->info(" 997 " .$notification) unless $email eq 'api@thetyee.ca';
          
           } else {
@@ -228,7 +228,7 @@ $notification = $email . "updated based on recurly webhook.";
                     html => $errorHtml, 
                     resultStr => $result }, 
                 status => 500 );
-		$notification = $email . ", failure? return did not contain 'subscribed'.   error: " .$errorText;
+		$notification .= $email . ", failure? return did not contain 'subscribed'.   error: " .$errorText;
 		app->log->info(" 998 " .$email . ", failure \n") unless $email eq 'api@thetyee.ca';
           }
     } else {
