@@ -103,7 +103,8 @@ post '/recurly' => sub {
 
     
     if ($hooktype eq 'new_subscription_notification') {
-     
+    $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
+ 
              $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
          my $mctime = $t->strftime("%m/%d/%Y");
@@ -116,6 +117,8 @@ post '/recurly' => sub {
     
     
     } elsif ($hooktype eq 'renewed_subscription_notification') {
+         $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
+
                   $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
          my $mctime = $t->strftime("%m/%d/%Y");
@@ -125,7 +128,8 @@ post '/recurly' => sub {
         $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
         $merge_fields->{'BUILDER'} = 1;
 
-    } elsif ($hooktype eq 'successful_payment_notification' && ref ($xms->{$hooktype}{transaction}{subscription_id}) && $xms->{$hooktype}{transaction}{subscription_id}{nil} && $xms->{$hooktype}{transaction}{subscription_id}{nil} eq 'true') {      
+    } elsif ($hooktype eq 'successful_payment_notification' && (  $xms->{$hooktype}{transaction}{subscription_id}{nil} && $xms->{$hooktype}{transaction}{subscription_id}{nil} eq 'true')) {      
+    $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
 
         $merge_fields->{'B_ONETIME'} = 1;
         $merge_fields->{'B_ONE_AMT'} = ($xms->{$hooktype}{transaction}{amount_in_cents}{content}  / 100);
@@ -135,17 +139,16 @@ post '/recurly' => sub {
         $merge_fields->{'ONETIME_DT'} = $mctime;
         
     } elsif ($hooktype eq 'updated_subscription_notification') {
+            $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
         $merge_fields->{'B_LEVEL'} = ($xms->{$hooktype}{subscription}{total_amount_in_cents}{content} / 100);
         $merge_fields->{'BUILDER'} = 1;
         $date = $xms->{$hooktype}{subscription}{current_period_started_at}{content};
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
         my $mctime = $t->strftime("%m/%d/%Y");
         $merge_fields->{'B_L_T_DATE'} = $mctime;
-        $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};
-
-
-        
+        $merge_fields->{'B_PLAN'} = $xms->{$hooktype}{subscription}{plan}{plan_code};   
      } elsif ($hooktype eq 'expired_subscription_notification' || $hooktype eq 'canceled_subscription_notification') {
+            $ub->post($config->{'notify_url'} => json => {text => "$email parsing $hooktype" }) unless $email eq 'api@thetyee.ca'; 
         $date = $xms->{$hooktype}{subscription}{canceled_at}{content};    
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
         my $mctime = $t->strftime("%m/%d/%Y");
@@ -153,8 +156,6 @@ post '/recurly' => sub {
         $merge_fields->{'B_C_DATE'} = $mctime;
         $merge_fields->{'B_PLAN'} = 'cancelled';
         $merge_fields->{'BUILDER'} = 0;
-
-
     } else {
             $self->app->log->debug('transtype is ' . $hooktype);    
             $self->app->log->debug( 'no webhooks of use here' );
@@ -221,17 +222,17 @@ my $GETURL =   Mojo::URL->new('https://' . $config->{'mc_user'} . ':' . $config-
                     subcriberId => $subscriberId, 
                     resultStr => $result }, 
                 status => 200 );
-$notification = $email . "updated based on recurly webhook";
+$notification = $email . "updated based on recurly webhook.";
             app->log->info($notification) unless $email eq 'api@thetyee.ca';
          
 $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
-          } elsif ( $result =~ 'FAILURE' ) {
+          } else {
             $self->render( json => { 
                     text => $errorText, 
                     html => $errorHtml, 
                     resultStr => $result }, 
                 status => 500 );
-		$notification = $email . ", failure.   error: " .$errorText;
+		$notification = $email . ", failure? return did not contain 'subscribed'.   error: " .$errorText;
 		app->log->info($email . ", failure \n") unless $email eq 'api@thetyee.ca';
         $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $email eq 'api@thetyee.ca'; 
           }
@@ -248,6 +249,8 @@ $ub->post($config->{'notify_url'} => json => {text => $notification }) unless $e
                 status => 500 );
 	app->log->info("error: "  . $errorText) unless $email eq 'api@thetyee.ca';
             app->log->debug("error: "  . $errorText);
+                    $ub->post($config->{'notify_url'} => json => {text => "error: $errorText \n" }) unless $email eq 'api@thetyee.ca'; 
+            
     }
     
     
