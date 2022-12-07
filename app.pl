@@ -150,7 +150,7 @@ post '/recurly' => sub {
         my $t = Time::Piece->strptime($date, "%Y-%m-%dT%H:%M:%SZ");
         my $mctime = $t->strftime("%m/%d/%Y");
         $merge_fields->{'B_L_T_DATE'} =  $mctime;   
-        $merge_fields->{'B_C_DATE'} = $mctime
+        $merge_fields->{'B_C_DATE'} = $mctime;
         $merge_fields->{'B_PLAN'} = 'cancelled';
         $merge_fields->{'BUILDER'} = 0;
 
